@@ -6,10 +6,11 @@
   outputs = { self, nixpkgs }: let
     system = "x86_64-linux";
     pkgs = nixpkgs.legacyPackages.${system};
+    cargoConfig = builtins.fromTOML (builtins.readFile ./Cargo.toml);
   in {
     packages.${system}.fh = pkgs.rustPlatform.buildRustPackage {
-      pname = "fh";
-      version = "0.1";
+      pname = cargoConfig.package.name;
+      version = cargoConfig.package.version;
 
       src = ./.;
 
