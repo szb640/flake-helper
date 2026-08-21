@@ -1,5 +1,7 @@
 use clap::{Parser, Subcommand};
 
+mod update;
+
 /// Utilities for managing development environments with flake.
 #[derive(Parser)]
 #[command(name = "fh", version, about)]
@@ -29,7 +31,7 @@ fn main() {
 
     match cli.action {
         Action::Update { recurse } => {
-            println!("Running update (recurse = {recurse})");
+            update::run(recurse);
         }
         Action::Cache { recurse } => {
             println!("Running cache (recurse = {recurse})");

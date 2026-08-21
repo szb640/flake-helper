@@ -5,3 +5,5 @@ edition = "2024"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
+globmatch = "0.3.1"
+regex = "1"
