@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 
+mod cache;
 mod update;
 
 /// Utilities for managing development environments with flake.
@@ -34,7 +35,7 @@ fn main() {
             update::run(recurse);
         }
         Action::Cache { recurse } => {
-            println!("Running cache (recurse = {recurse})");
+            cache::run(recurse);
         }
     }
 }
