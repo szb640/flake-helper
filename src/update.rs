@@ -1,5 +1,6 @@
 /// Logic for the `update` action.
 use std::path::{Path, PathBuf};
+use log::{debug, info, warn, error};
 
 /// Run the `update` action.
 ///
@@ -8,7 +9,8 @@ use std::path::{Path, PathBuf};
 /// directory and process each one.
 pub fn run(recurse: bool) {
     let nixos_version = get_current_nixos_revision();
-
+    debug!("Current NixOS revision: {nixos_version}");
+    
     if recurse {
         let cwd = std::env::current_dir().expect("failed to get current directory");
         for flake in find_flakes_recursive(&cwd) {
@@ -21,7 +23,7 @@ pub fn run(recurse: bool) {
         if flake.exists() {
             update_flake(&flake, &nixos_version);
         } else {
-            eprintln!("no flake.nix found at {}", flake.display());
+            warn!("no flake.nix found at {}", flake.display());
         }
     }
 }
@@ -30,10 +32,11 @@ pub fn run(recurse: bool) {
 ///
 /// The caller is responsible for ensuring the file exists.
 fn update_flake(flake: &Path, nixos_version: &str) {
+    debug!("Starting update of {}...", flake.display());
     let contents = match std::fs::read_to_string(flake) {
         Ok(contents) => contents,
         Err(err) => {
-            eprintln!("error reading {}: {err}", flake.display());
+            error!("error reading {}: {err}", flake.display());
             return;
         }
     };
@@ -42,7 +45,7 @@ fn update_flake(flake: &Path, nixos_version: &str) {
         .expect("invalid nixpkgs pinned regex");
 
     if !re.is_match(&contents) {
-        eprintln!(
+        error!(
             "warning: {} does not pin nixpkgs to a revision; skipping",
             flake.display()
         );
@@ -55,15 +58,16 @@ fn update_flake(flake: &Path, nixos_version: &str) {
 
     // Only report the file if the content actually changed.
     if updated == contents {
+        info!("Flake already up-to-date: {}", flake.display());
         return;
     }
 
     if let Err(err) = std::fs::write(flake, updated.as_bytes()) {
-        eprintln!("error writing {}: {err}", flake.display());
+        error!("error writing {}: {err}", flake.display());
         return;
     }
 
-    println!("Updated flake: {}", flake.display());
+    info!("Updated flake: {}", flake.display());
 }
 
 /// Get the current system's NixOS revision via `nixos-version --revision`.
@@ -86,7 +90,7 @@ fn find_flakes_recursive(root: &Path) -> impl Iterator<Item = PathBuf> {
     matcher.into_iter().filter_map(|item| match item {
         Ok(path) => Some(path),
         Err(err) => {
-            eprintln!("warning: {err}");
+            warn!("warning: {err}");
             None
         }
     })

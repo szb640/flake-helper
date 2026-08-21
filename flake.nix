@@ -9,12 +9,12 @@
     cargoConfig = builtins.fromTOML (builtins.readFile ./Cargo.toml);
   in {
     packages.${system}.flake-helper = pkgs.rustPlatform.buildRustPackage {
-      pname = cargoConfig.package.name;
+      pname = "flake-helper";
       version = cargoConfig.package.version;
 
       src = ./.;
 
-      cargoHash = "sha256-bvrjFR5prHS+rVz+TUBtBR4W8HFxPvVwzM8UWgJAn1U=";
+      cargoHash = "sha256-CN97oSuhwPJCFlVsbmA8zzW2/wjU5yUX8ShLgFBoPTo=";
 
       meta = {
         description = "Utilities for managing development environments with flake.";

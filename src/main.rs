@@ -6,6 +6,10 @@ mod update;
 #[derive(Parser)]
 #[command(name = "fh", version, about)]
 struct Cli {
+    /// Increase logging verbosity.
+    #[arg(short, long)]
+    verbose: bool,
+
     #[command(subcommand)]
     action: Action,
 }
@@ -22,6 +26,10 @@ enum Action {
 
 fn main() {
     let cli = Cli::parse();
+
+    let default_level = if cli.verbose { "debug" } else { "info" };
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(default_level))
+        .init();
 
     match cli.action {
         Action::Update { recurse } => {
