@@ -1,6 +1,5 @@
 use clap::{Parser, Subcommand};
 
-mod cache;
 mod update;
 
 /// Utilities for managing development environments with flake.
@@ -19,12 +18,6 @@ enum Action {
         #[arg(short, long)]
         recurse: bool,
     },
-    /// Populate the cache.
-    Cache {
-        /// Recurse into subdirectories.
-        #[arg(short, long)]
-        recurse: bool,
-    },
 }
 
 fn main() {
@@ -33,9 +26,6 @@ fn main() {
     match cli.action {
         Action::Update { recurse } => {
             update::run(recurse);
-        }
-        Action::Cache { recurse } => {
-            cache::run(recurse);
         }
     }
 }
