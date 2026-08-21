@@ -14,7 +14,7 @@
 
       src = ./.;
 
-      cargoHash = "sha256-+cmIbZBmSSemXzmK6i2a0uOK+dDfvB3LFrRl3cZZf1w=";
+      cargoHash = "sha256-EZWYwhT/uSGymIgTqTi0GoY9L6aCPukHRf5GIBIn4SA=";
 
       meta = {
         description = "Utilities for managing development environments with flake.";
