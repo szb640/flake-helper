@@ -8,7 +8,7 @@
     pkgs = nixpkgs.legacyPackages.${system};
     cargoConfig = builtins.fromTOML (builtins.readFile ./Cargo.toml);
   in {
-    packages.${system}.fh = pkgs.rustPlatform.buildRustPackage {
+    packages.${system}.flake-helper = pkgs.rustPlatform.buildRustPackage {
       pname = cargoConfig.package.name;
       version = cargoConfig.package.version;
 
@@ -22,6 +22,11 @@
         maintainers = [{ name = "szb640"; }];
       };
     };
+    
+    overlays.default = final: prev: {
+      flake-helper = self.packages.${final.system}.flake-helper;
+    };
+    
     devShells.${system}.default = pkgs.mkShell {
       packages = with pkgs;[
         rustc

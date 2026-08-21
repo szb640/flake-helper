@@ -8,4 +8,4 @@ default:
 
 alias b := build
 build:
-    nix build .#fh
+    nix build .#flake-helper
