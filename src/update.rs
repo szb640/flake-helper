@@ -12,21 +12,19 @@ pub fn run(recurse: bool) {
     let nixos_version = get_current_nixos_revision();
     debug!("Current NixOS revision: {nixos_version}");
 
-    if recurse {
-        let cwd = std::env::current_dir().expect("failed to get current directory");
-        for (file, pattern) in find_files_recursive(&cwd) {
+    // Resolve the working directory once and loop over every pinned file,
+    // updating whichever are found with their matching pin pattern.
+    let cwd = std::env::current_dir().expect("failed to get current directory");
+    let mut found = false;
+    for (name, pattern) in PINNED_FILES {
+        for file in find_files(&cwd, name, recurse) {
+            found = true;
             update_file(&file, pattern, &nixos_version);
         }
-    } else {
-        let cwd = std::env::current_dir().expect("failed to get current directory");
-        for (name, pattern) in PINNED_FILES {
-            let file = cwd.join(name);
-            if file.exists() {
-                update_file(&file, pattern, &nixos_version);
-            } else {
-                warn!("no {name} found at {}", file.display());
-            }
-        }
+        
+    }
+    if !found {
+        warn!("no files found under {}", cwd.display());
     }
 }
 
@@ -109,21 +107,29 @@ fn get_current_nixos_revision() -> String {
         .to_string()
 }
 
-/// Find every recognized nix file under `root`, paired with the regex pattern
-/// used to update it.
-pub fn find_files_recursive(root: &Path) -> impl Iterator<Item = (PathBuf, &'static str)> {
-    PINNED_FILES.iter().flat_map(move |&(name, pattern)| {
-        let glob = format!("**/{name}");
-        let matcher = globmatch::Builder::new(&glob)
-            .build(root)
-            .expect("failed to build nix file glob");
-        matcher.into_iter().filter_map(move |item| match item {
-            Ok(path) => Some((path, pattern)),
-            Err(err) => {
-                warn!("warning: {err}");
-                None
-            }
-        })
+/// Find every file named `name` under `root`.
+///
+/// If `recursive` is true, descend into subdirectories; otherwise only search
+/// `root` directly. Returns the paths found, in no particular order.
+pub fn find_files<'a>(
+    root: &'a Path,
+    name: &str,
+    recursive: bool,
+) -> impl Iterator<Item = PathBuf> + 'a {
+    let glob = if recursive {
+        format!("**/{name}")
+    } else {
+        name.to_owned()
+    };
+    let matcher = globmatch::Builder::new(&glob)
+        .build(root)
+        .expect("failed to build nix file glob");
+    matcher.into_iter().filter_map(move |item| match item {
+        Ok(path) => Some(path),
+        Err(err) => {
+            warn!("warning: {err}");
+            None
+        }
     })
 }
 

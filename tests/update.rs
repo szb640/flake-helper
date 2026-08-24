@@ -143,7 +143,7 @@ fn missing_file_is_handled_gracefully() {
 }
 
 #[test]
-fn find_files_recursive_discovers_nested_files() {
+fn find_files_discovers_nested_files_recursively() {
     let dir = TempDir::new();
     dir.write("flake.nix", "");
     dir.write("shell.nix", "");
@@ -151,20 +151,30 @@ fn find_files_recursive_discovers_nested_files() {
     dir.write("sub/shell.nix", "");
     // An unrelated file is ignored by the search.
     dir.write("other.toml", "");
-    // A `.nix` file that is not a registered pinned file is ignored too.
+    // A `.nix` file that is not the searched-for name is ignored too.
     dir.write("default.nix", "");
 
-    let found: Vec<PathBuf> = update::find_files_recursive(&dir.0)
-        .map(|(path, _)| path)
-        .collect();
+    let found: Vec<PathBuf> = update::find_files(&dir.0, "flake.nix", true).collect();
 
-    assert_eq!(found.len(), 4);
+    assert_eq!(found.len(), 2);
     assert!(found.iter().any(|p| p.ends_with("flake.nix")));
-    assert!(found.iter().any(|p| p.ends_with("shell.nix")));
     assert!(found.iter().any(|p| p.ends_with("sub/deep/flake.nix")));
-    assert!(found.iter().any(|p| p.ends_with("sub/shell.nix")));
+    assert!(found.iter().all(|p| !p.ends_with("shell.nix")));
     assert!(found.iter().all(|p| !p.ends_with("other.toml")));
     assert!(found.iter().all(|p| !p.ends_with("default.nix")));
+}
+
+#[test]
+fn find_files_direct_only_when_not_recursive() {
+    let dir = TempDir::new();
+    dir.write("shell.nix", "");
+    dir.write("sub/shell.nix", "");
+
+    let found: Vec<PathBuf> = update::find_files(&dir.0, "shell.nix", false).collect();
+
+    assert_eq!(found.len(), 1);
+    assert!(found.iter().any(|p| p.ends_with("shell.nix")));
+    assert!(found.iter().all(|p| !p.ends_with("sub/shell.nix")));
 }
 
 #[test]
