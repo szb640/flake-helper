@@ -52,11 +52,9 @@ fn update_flake(flake: &Path, nixos_version: &str) {
         return;
     }
 
-    // Replace every matched revision part with the current system revision.
     let updated =
-        re.replace_all(&contents, format!("github:NixOS/nixpkgs/{nixos_version}"));
+        re.replace(&contents, format!("github:NixOS/nixpkgs/{nixos_version}"));
 
-    // Only report the file if the content actually changed.
     if updated == contents {
         info!("Flake already up-to-date: {}", flake.display());
         return;
