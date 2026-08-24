@@ -14,10 +14,10 @@
 
       src = ./.;
 
-      cargoHash = "sha256-CN97oSuhwPJCFlVsbmA8zzW2/wjU5yUX8ShLgFBoPTo=";
+      cargoHash = "sha256-oBbdSWGZRLR/aVbyP/TfQszs2X2QGrtSIwKnXEQ+ES8=";
 
       meta = {
-        description = "Utilities for managing development environments with flake.";
+        description = "Utilities for managing development environments on Nix.";
         mainProgram = "fh";
         maintainers = [{ name = "szb640"; }];
       };

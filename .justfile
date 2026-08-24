@@ -9,3 +9,7 @@ default:
 alias b := build
 build:
     nix build .#flake-helper
+
+alias t := test
+test:
+    cargo test

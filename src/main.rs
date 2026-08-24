@@ -1,6 +1,5 @@
 use clap::{Parser, Subcommand};
-
-mod update;
+use fh::update;
 
 /// Utilities for managing development environments with flake.
 #[derive(Parser)]
@@ -32,8 +31,6 @@ fn main() {
         .init();
 
     match cli.action {
-        Action::Update { recurse } => {
-            update::run(recurse);
-        }
+        Action::Update { recurse } => update::run(recurse),
     }
 }

@@ -41,7 +41,7 @@ pub fn run(recurse: bool) {
 /// The keys are also used to discover the files (both directly in the current
 /// directory and under recursion), so adding a new file type here teaches `fh`
 /// how to find and update it.
-const PINNED_FILES: &[(&str, &str)] = &[
+pub const PINNED_FILES: &[(&str, &str)] = &[
     ("flake.nix", "(github:NixOS/nixpkgs/)([0-9a-f]{40})"),
     (
         "shell.nix",
@@ -53,7 +53,7 @@ const PINNED_FILES: &[(&str, &str)] = &[
 ///
 /// `pattern` is the pinned-revision regex for this file, taken from
 /// `PINNED_FILES`. The caller is responsible for ensuring the file exists.
-fn update_file(path: &Path, pattern: &str, nixos_version: &str) {
+pub fn update_file(path: &Path, pattern: &str, nixos_version: &str) {
     debug!("Starting update of {}...", path.display());
     let contents = match std::fs::read_to_string(path) {
         Ok(contents) => contents,
@@ -73,7 +73,7 @@ fn update_file(path: &Path, pattern: &str, nixos_version: &str) {
         return;
     }
 
-    let updated = re.replace_all(&contents, |caps: &regex::Captures| {
+    let updated = re.replace(&contents, |caps: &regex::Captures| {
         let full = &caps[0];
         let prefix = &caps[1];
         let rev = &caps[2];
@@ -111,7 +111,7 @@ fn get_current_nixos_revision() -> String {
 
 /// Find every recognized nix file under `root`, paired with the regex pattern
 /// used to update it.
-fn find_files_recursive(root: &Path) -> impl Iterator<Item = (PathBuf, &'static str)> {
+pub fn find_files_recursive(root: &Path) -> impl Iterator<Item = (PathBuf, &'static str)> {
     PINNED_FILES.iter().flat_map(move |&(name, pattern)| {
         let glob = format!("**/{name}");
         let matcher = globmatch::Builder::new(&glob)
@@ -126,3 +126,4 @@ fn find_files_recursive(root: &Path) -> impl Iterator<Item = (PathBuf, &'static 
         })
     })
 }
+
