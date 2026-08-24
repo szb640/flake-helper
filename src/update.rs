@@ -4,69 +4,98 @@ use log::{debug, info, warn, error};
 
 /// Run the `update` action.
 ///
-/// If `recurse` is false, process a `flake.nix` in the current directory.
-/// If `recurse` is true, recursively find every `flake.nix` under the current
-/// directory and process each one.
+/// If `recurse` is false, process a `flake.nix` and `shell.nix` in the current
+/// directory.
+/// If `recurse` is true, recursively find every `flake.nix` and `shell.nix`
+/// under the current directory and process each one.
 pub fn run(recurse: bool) {
     let nixos_version = get_current_nixos_revision();
     debug!("Current NixOS revision: {nixos_version}");
-    
+
     if recurse {
         let cwd = std::env::current_dir().expect("failed to get current directory");
-        for flake in find_flakes_recursive(&cwd) {
-            update_flake(&flake, &nixos_version);
+        for (file, pattern) in find_files_recursive(&cwd) {
+            update_file(&file, pattern, &nixos_version);
         }
     } else {
-        let flake = std::env::current_dir()
-            .expect("failed to get current directory")
-            .join("flake.nix");
-        if flake.exists() {
-            update_flake(&flake, &nixos_version);
-        } else {
-            warn!("no flake.nix found at {}", flake.display());
+        let cwd = std::env::current_dir().expect("failed to get current directory");
+        for (name, pattern) in PINNED_FILES {
+            let file = cwd.join(name);
+            if file.exists() {
+                update_file(&file, pattern, &nixos_version);
+            } else {
+                warn!("no {name} found at {}", file.display());
+            }
         }
     }
 }
 
-/// Process a single flake file.
+/// The different ways nixpkgs may be pinned to a revision, keyed by file name.
 ///
-/// The caller is responsible for ensuring the file exists.
-fn update_flake(flake: &Path, nixos_version: &str) {
-    debug!("Starting update of {}...", flake.display());
-    let contents = match std::fs::read_to_string(flake) {
+/// * `flake.nix` pins via a flake input URL: `github:NixOS/nixpkgs/<rev>`.
+/// * `shell.nix` pins via a tarball URL: `.../nixpkgs/archive/<rev>.tar.gz`.
+///
+/// Every pattern captures the prefix as group 1 and the revision as group 2,
+/// so a single replacement routine can rewrite any of them.
+///
+/// The keys are also used to discover the files (both directly in the current
+/// directory and under recursion), so adding a new file type here teaches `fh`
+/// how to find and update it.
+const PINNED_FILES: &[(&str, &str)] = &[
+    ("flake.nix", "(github:NixOS/nixpkgs/)([0-9a-f]{40})"),
+    (
+        "shell.nix",
+        "(https://github.com/NixOS/nixpkgs/archive/)([0-9a-f]{40})(\\.tar\\.gz)",
+    ),
+];
+
+/// Process a single nix file.
+///
+/// `pattern` is the pinned-revision regex for this file, taken from
+/// `PINNED_FILES`. The caller is responsible for ensuring the file exists.
+fn update_file(path: &Path, pattern: &str, nixos_version: &str) {
+    debug!("Starting update of {}...", path.display());
+    let contents = match std::fs::read_to_string(path) {
         Ok(contents) => contents,
         Err(err) => {
-            error!("error reading {}: {err}", flake.display());
+            error!("error reading {}: {err}", path.display());
             return;
         }
     };
 
-    let re = regex::Regex::new(r"github:NixOS/nixpkgs/([0-9a-f]{40})")
-        .expect("invalid nixpkgs pinned regex");
+    let re = regex::Regex::new(pattern).expect("invalid nixpkgs pinned regex");
 
     if !re.is_match(&contents) {
         error!(
             "warning: {} does not pin nixpkgs to a revision; skipping",
-            flake.display()
+            path.display()
         );
         return;
     }
 
-    let updated =
-        re.replace(&contents, format!("github:NixOS/nixpkgs/{nixos_version}"));
+    let updated = re.replace_all(&contents, |caps: &regex::Captures| {
+        let full = &caps[0];
+        let prefix = &caps[1];
+        let rev = &caps[2];
+        // Preserve any suffix after the revision (e.g. `.tar.gz`).
+        let suffix = &full[prefix.len() + rev.len()..];
+        format!("{prefix}{nixos_version}{suffix}")
+    });
 
     if updated == contents {
-        info!("Flake already up-to-date: {}", flake.display());
+        info!("File already up-to-date: {}", path.display());
         return;
     }
 
-    if let Err(err) = std::fs::write(flake, updated.as_bytes()) {
-        error!("error writing {}: {err}", flake.display());
+    if let Err(err) = std::fs::write(path, updated.as_bytes()) {
+        error!("error writing {}: {err}", path.display());
         return;
     }
 
-    info!("Updated flake: {}", flake.display());
+    info!("Updated file: {}", path.display());
 }
+
+
 
 /// Get the current system's NixOS revision via `nixos-version --revision`.
 fn get_current_nixos_revision() -> String {
@@ -80,16 +109,20 @@ fn get_current_nixos_revision() -> String {
         .to_string()
 }
 
-/// Find every `flake.nix` under `root`.
-fn find_flakes_recursive(root: &Path) -> impl Iterator<Item = PathBuf> {
-    let matcher = globmatch::Builder::new("**/flake.nix")
-        .build(root)
-        .expect("failed to build flake.nix glob");
-    matcher.into_iter().filter_map(|item| match item {
-        Ok(path) => Some(path),
-        Err(err) => {
-            warn!("warning: {err}");
-            None
-        }
+/// Find every recognized nix file under `root`, paired with the regex pattern
+/// used to update it.
+fn find_files_recursive(root: &Path) -> impl Iterator<Item = (PathBuf, &'static str)> {
+    PINNED_FILES.iter().flat_map(move |&(name, pattern)| {
+        let glob = format!("**/{name}");
+        let matcher = globmatch::Builder::new(&glob)
+            .build(root)
+            .expect("failed to build nix file glob");
+        matcher.into_iter().filter_map(move |item| match item {
+            Ok(path) => Some((path, pattern)),
+            Err(err) => {
+                warn!("warning: {err}");
+                None
+            }
+        })
     })
 }
