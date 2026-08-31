@@ -24,7 +24,7 @@
     };
     
     overlays.default = final: prev: {
-      flake-helper = self.packages.${final.system}.flake-helper;
+      flake-helper = self.packages.${final.stdenv.hostPlatform.system}.flake-helper;
     };
     
     devShells.${system}.default = pkgs.mkShell {
